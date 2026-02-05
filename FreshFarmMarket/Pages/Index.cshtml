@@ -1,0 +1,64 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<div class="text-center mt-5">
+    <h1 class="display-3">🌾 Welcome to Fresh Farm Market</h1>
+    <p class="lead mt-4">Your trusted source for fresh, organic produce delivered to your doorstep</p>
+    
+    <div class="row mt-5">
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <i class="bi bi-shop text-success" style="font-size: 3rem;"></i>
+                    <h5 class="card-title mt-3">Fresh Products</h5>
+                    <p class="card-text">Get the freshest organic fruits and vegetables directly from local farms.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <i class="bi bi-truck text-success" style="font-size: 3rem;"></i>
+                    <h5 class="card-title mt-3">Fast Delivery</h5>
+                    <p class="card-text">Same-day delivery to your home. Fresh produce at your convenience.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <i class="bi bi-shield-check text-success" style="font-size: 3rem;"></i>
+                    <h5 class="card-title mt-3">Secure Payment</h5>
+                    <p class="card-text">Your payment information is encrypted and secure with us.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (!HttpContext.Session.GetInt32("MemberId").HasValue)
+    {
+        <div class="mt-5">
+            <h3 class="mb-4">Join us today and enjoy fresh farm produce!</h3>
+            <div class="d-grid gap-2 d-md-block">
+                <a asp-page="/Account/Register" class="btn btn-success btn-lg px-5 me-md-2">
+                    <i class="bi bi-person-plus"></i> Register Now
+                </a>
+                <a asp-page="/Account/Login" class="btn btn-outline-success btn-lg px-5">
+                    <i class="bi bi-box-arrow-in-right"></i> Login
+                </a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="mt-5">
+            <h3 class="mb-4">Welcome back, @HttpContext.Session.GetString("MemberName")!</h3>
+            <a asp-page="/Account/Home" class="btn btn-success btn-lg px-5">
+                <i class="bi bi-house-door"></i> Go to Dashboard
+            </a>
+        </div>
+    }
+</div>

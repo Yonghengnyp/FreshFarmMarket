@@ -1,0 +1,52 @@
+@page
+@{
+    ViewData["Title"] = "Generate Keys";
+}
+
+<div class="container mt-5">
+    <div class="card">
+        <div class="card-header bg-warning">
+            <h3>?? Encryption Key Generator</h3>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-warning" role="alert">
+                <strong>?? Security Warning:</strong> Run this page once, copy the keys to appsettings.json, then delete this page!
+            </div>
+            
+            @{
+                var key = FreshFarmMarket.Services.EncryptionService.GenerateKey();
+                var iv = FreshFarmMarket.Services.EncryptionService.GenerateIV();
+            }
+            
+            <h5>Copy these values to your appsettings.json:</h5>
+            <pre class="bg-light p-3 border rounded">
+"Encryption": {
+  "Key": "@key",
+  "IV": "@iv"
+}
+            </pre>
+            
+            <div class="mt-4">
+                <h6>Individual Values:</h6>
+                <div class="mb-3">
+                    <label class="form-label"><strong>Key:</strong></label>
+                    <input type="text" class="form-control" value="@key" readonly onclick="this.select()" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label"><strong>IV:</strong></label>
+                    <input type="text" class="form-control" value="@iv" readonly onclick="this.select()" />
+                </div>
+            </div>
+            
+            <div class="alert alert-info mt-4">
+                <strong>Next Steps:</strong>
+                <ol class="mb-0">
+                    <li>Copy the Key value to appsettings.json ? Encryption ? Key</li>
+                    <li>Copy the IV value to appsettings.json ? Encryption ? IV</li>
+                    <li>Delete this page (GenerateKeys.cshtml) for security</li>
+                    <li>Get reCAPTCHA keys from <a href="https://www.google.com/recaptcha/admin" target="_blank">Google reCAPTCHA</a></li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>

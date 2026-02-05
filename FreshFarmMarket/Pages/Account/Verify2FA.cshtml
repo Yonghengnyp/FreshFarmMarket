@@ -1,0 +1,190 @@
+@page
+@model FreshFarmMarket.Pages.Account.Verify2FAModel
+@{
+    ViewData["Title"] = "Two-Factor Authentication";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0"><i class="bi bi-shield-lock"></i> Email Verification Required</h3>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(Model.StatusMessage))
+                    {
+                        <div class="alert alert-info alert-dismissible fade show" role="alert">
+                            @Model.StatusMessage
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    }
+
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle"></i>
+                        <strong>Login credentials verified!</strong><br>
+                        For security, we've sent a verification code to your email.
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="bi bi-envelope-fill"></i>
+                        <strong>Check your email:</strong>
+                        <p class="mb-2 mt-2">A 6-digit verification code has been sent to:</p>
+                        <p class="mb-0"><strong>@Model.Email</strong></p>
+                    </div>
+
+                    <form method="post">
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Code" class="form-label">
+                                <i class="bi bi-key"></i> Enter the 6-digit code from your email:
+                            </label>
+                            <input asp-for="Input.Code" 
+                                   class="form-control form-control-lg text-center" 
+                                   placeholder="000000" 
+                                   maxlength="6"
+                                   pattern="\d{6}"
+                                   inputmode="numeric"
+                                   autocomplete="off"
+                                   autofocus 
+                                   style="font-size: 24px; letter-spacing: 10px;" />
+                            <span asp-validation-for="Input.Code" class="text-danger"></span>
+                            <small class="text-muted">The code expires in 5 minutes</small>
+                        </div>
+
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <strong>Didn't receive the code?</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>Check your spam/junk folder</li>
+                                <li>Make sure you entered the correct email address</li>
+                                <li>Wait a few minutes for the email to arrive</li>
+                                <li>Click "Resend Code" below to get a new one</li>
+                            </ul>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-check-circle"></i> Verify & Login
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="d-grid gap-2 mt-3">
+                        <form method="post" asp-page-handler="ResendCode">
+                            <button type="submit" class="btn btn-outline-info w-100">
+                                <i class="bi bi-arrow-clockwise"></i> Resend Code
+                            </button>
+                        </form>
+                        <a asp-page="/Account/Login" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Back to Login
+                        </a>
+                    </div>
+
+                    <div class="card bg-light mt-3">
+                        <div class="card-body">
+                            <h6 class="card-title"><i class="bi bi-info-circle"></i> About Email 2FA</h6>
+                            <ul class="mb-0 small">
+                                <li><strong>Secure:</strong> Adds an extra layer of security to your account</li>
+                                <li><strong>Time-limited:</strong> Each code expires after 5 minutes</li>
+                                <li><strong>One-time use:</strong> Each code can only be used once</li>
+                                <li><strong>Email required:</strong> Make sure you have access to @Model.Email</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="card bg-light mt-3">
+                        <div class="card-body">
+                            <h6 class="card-title"><i class="bi bi-question-circle"></i> Troubleshooting</h6>
+                            <ul class="mb-0 small">
+                                <li><strong>Code not working?</strong> Make sure you're entering the latest code from your email</li>
+                                <li><strong>Code expired?</strong> Click "Resend Code" to get a new one</li>
+                                <li><strong>No email received?</strong> Check spam folder or wait a few minutes</li>
+                                <li><strong>Wrong email?</strong> You may need to update your account email address</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    
+    <script>
+        // Auto-format code input (6 digits only, no spaces)
+        document.querySelector('input[name="Input.Code"]')?.addEventListener('input', function(e) {
+            // Remove any non-digit characters
+            let value = e.target.value.replace(/\D/g, '');
+            
+            // Limit to 6 digits
+            if (value.length > 6) {
+                value = value.slice(0, 6);
+            }
+            
+            e.target.value = value;
+        });
+
+        // Countdown timer showing when code expires
+        function startCountdown() {
+            // Get expiry from session (5 minutes from when code was sent)
+            const expiryMinutes = 5;
+            const now = new Date();
+            
+            // For simplicity, just show a 5-minute countdown
+            // In production, you'd get the actual expiry time from the server
+            let secondsLeft = expiryMinutes * 60;
+            
+            const timer = document.createElement('div');
+            timer.className = 'text-center mt-2 alert alert-warning';
+            timer.innerHTML = `<i class="bi bi-clock"></i> <strong>Code expires in <span id="countdown">${Math.floor(secondsLeft / 60)}:${(secondsLeft % 60).toString().padStart(2, '0')}</span></strong>`;
+            
+            const form = document.querySelector('form');
+            const codeInput = document.querySelector('input[name="Input.Code"]');
+            if (codeInput && codeInput.parentElement && !document.getElementById('countdown')) {
+                codeInput.parentElement.appendChild(timer);
+                
+                const countdownInterval = setInterval(() => {
+                    secondsLeft--;
+                    
+                    if (secondsLeft <= 0) {
+                        clearInterval(countdownInterval);
+                        const countdownEl = document.getElementById('countdown');
+                        if (countdownEl) {
+                            timer.className = 'text-center mt-2 alert alert-danger';
+                            timer.innerHTML = '<i class="bi bi-x-circle"></i> <strong>Code expired! Click "Resend Code" to get a new one.</strong>';
+                        }
+                    } else {
+                        const countdownEl = document.getElementById('countdown');
+                        if (countdownEl) {
+                            const minutes = Math.floor(secondsLeft / 60);
+                            const seconds = secondsLeft % 60;
+                            countdownEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                        }
+                    }
+                }, 1000);
+            }
+        }
+
+        // Start countdown when page loads
+        document.addEventListener('DOMContentLoaded', startCountdown);
+
+        // Auto-submit when 6 digits are entered (optional)
+        document.querySelector('input[name="Input.Code"]')?.addEventListener('input', function(e) {
+            if (e.target.value.length === 6 && /^\d{6}$/.test(e.target.value)) {
+                // Code is complete - could auto-submit here if desired
+                // e.target.closest('form').submit();
+                
+                // Or just indicate it's ready
+                e.target.style.borderColor = '#28a745';
+                e.target.style.boxShadow = '0 0 0 0.2rem rgba(40, 167, 69, 0.25)';
+            } else {
+                e.target.style.borderColor = '';
+                e.target.style.boxShadow = '';
+            }
+        });
+    </script>
+}

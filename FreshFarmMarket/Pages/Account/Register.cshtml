@@ -1,0 +1,229 @@
+﻿@page
+@model FreshFarmMarket.Pages.Account.RegisterModel
+@{
+    ViewData["Title"] = "Register";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h3 class="mb-0">🥗 Fresh Farm Market - Member Registration</h3>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(Model.StatusMessage))
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            @Model.StatusMessage
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    }
+
+                    <form method="post" enctype="multipart/form-data" id="registerForm">
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.FullName" class="form-label"></label>
+                            <input asp-for="Input.FullName" class="form-control" placeholder="Enter your full name" />
+                            <span asp-validation-for="Input.FullName" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.CreditCardNo" class="form-label"></label>
+                            <input asp-for="Input.CreditCardNo" class="form-control" placeholder="1234567890123456" maxlength="16" />
+                            <small class="form-text text-muted">Enter 16-digit credit card number</small>
+                            <span asp-validation-for="Input.CreditCardNo" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Gender" class="form-label"></label>
+                            <select asp-for="Input.Gender" class="form-select">
+                                <option value="">-- Select Gender --</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                            </select>
+                            <span asp-validation-for="Input.Gender" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.MobileNo" class="form-label"></label>
+                            <input asp-for="Input.MobileNo" class="form-control" placeholder="98765432" maxlength="8" />
+                            <small class="form-text text-muted">Singapore mobile number (8 digits)</small>
+                            <span asp-validation-for="Input.MobileNo" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.DeliveryAddress" class="form-label"></label>
+                            <textarea asp-for="Input.DeliveryAddress" class="form-control" rows="3" placeholder="Enter your delivery address"></textarea>
+                            <span asp-validation-for="Input.DeliveryAddress" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Email" class="form-label"></label>
+                            <input asp-for="Input.Email" class="form-control" type="email" placeholder="your.email@example.com" />
+                            <span asp-validation-for="Input.Email" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Password" class="form-label"></label>
+                            <input asp-for="Input.Password" class="form-control" type="password" id="password" />
+                            <small class="form-text text-muted">Min 12 chars: Upper, Lower, Number, Special</small>
+                            <span asp-validation-for="Input.Password" class="text-danger"></span>
+
+                            <div class="mt-2">
+                                <div class="progress" style="height: 5px;">
+                                    <div id="passwordStrengthBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                </div>
+                                <small id="passwordStrengthText" class="form-text"></small>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.ConfirmPassword" class="form-label"></label>
+                            <input asp-for="Input.ConfirmPassword" class="form-control" type="password" />
+                            <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Photo" class="form-label"></label>
+                            <input asp-for="Input.Photo" class="form-control" type="file" accept=".jpg,.jpeg,.png" />
+                            <small class="form-text text-muted">Upload a profile photo (max 5MB)</small>
+                            <span asp-validation-for="Input.Photo" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.AboutMe" class="form-label"></label>
+                            <textarea asp-for="Input.AboutMe" class="form-control" rows="4" placeholder="Tell us about yourself..."></textarea>
+                            <span asp-validation-for="Input.AboutMe" class="text-danger"></span>
+                        </div>
+
+                        <input type="hidden" asp-for="Input.RecaptchaToken" id="recaptchaToken" />
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-person-plus"></i> Register
+                            </button>
+                        </div>
+
+                        <div class="text-center mt-3">
+                            <p>Already have an account? <a asp-page="/Account/Login" class="text-success">Login here</a></p>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <script src="https://www.google.com/recaptcha/api.js?render=6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"></script>
+
+    <script>
+        // Global state to prevent double submission
+        let isSubmitting = false;
+
+        // --- PASSWORD STRENGTH LOGIC ---
+        document.getElementById('password')?.addEventListener('input', function() {
+            const password = this.value;
+            const result = calculatePasswordStrength(password);
+
+            const bar = document.getElementById('passwordStrengthBar');
+            const text = document.getElementById('passwordStrengthText');
+
+            bar.style.width = result.score + '%';
+            bar.className = 'progress-bar ' + result.colorClass;
+            text.textContent = result.level;
+            text.className = 'form-text ' + result.textClass;
+        });
+
+        function calculatePasswordStrength(password) {
+            let score = 0;
+            if (password.length >= 12) score += 20;
+            if (password.length >= 16) score += 10;
+            if (/[a-z]/.test(password)) score += 15;
+            if (/[A-Z]/.test(password)) score += 15;
+            if (/[0-9]/.test(password)) score += 15;
+            if (/[^A-Za-z0-9]/.test(password)) score += 20;
+            // Bonus points for variety
+            if (/[a-z].*[a-z]/.test(password)) score += 5;
+            if (/[A-Z].*[A-Z]/.test(password)) score += 5;
+            if (/[0-9].*[0-9]/.test(password)) score += 5;
+
+            score = Math.min(score, 100);
+
+            let level, colorClass, textClass;
+            if (score < 40) {
+                level = '🔴 WEAK';
+                colorClass = 'bg-danger';
+                textClass = 'text-danger';
+            } else if (score < 60) {
+                level = '🟡 FAIR';
+                colorClass = 'bg-warning';
+                textClass = 'text-warning';
+            } else if (score < 80) {
+                level = '🔵 GOOD';
+                colorClass = 'bg-info';
+                textClass = 'text-info';
+            } else {
+                level = '🟢 STRONG';
+                colorClass = 'bg-success';
+                textClass = 'text-success';
+            }
+            return { score, level, colorClass, textClass };
+        }
+
+        // --- FORM SUBMISSION & RECAPTCHA LOGIC ---
+        const registerForm = document.getElementById('registerForm');
+
+        if (registerForm) {
+            registerForm.addEventListener('submit', function(e) {
+                e.preventDefault(); // Stop standard submit immediately
+
+                // 1. CHECK VALIDATION using ASP.NET Core's jQuery Validate
+                // This prevents sending reCAPTCHA requests if the form is empty/invalid
+                if (!$(registerForm).valid()) {
+                    return false;
+                }
+
+                // 2. Prevent Double Clicks
+                if (isSubmitting) {
+                    return false;
+                }
+
+                // 3. UI Feedback (Lock button)
+                isSubmitting = true;
+                const submitButton = registerForm.querySelector('button[type="submit"]');
+                const originalBtnText = submitButton.innerHTML;
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+
+                // 4. Execute reCAPTCHA
+                grecaptcha.ready(function() {
+                    grecaptcha.execute('6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI', {action: 'register'})
+                        .then(function(token) {
+                            // Set the token
+                            document.getElementById('recaptchaToken').value = token;
+
+                            // 5. Submit the form PROGRAMMATICALLY
+                            // We use HTMLFormElement.prototype.submit to bypass the jQuery handler
+                            // and avoid an infinite loop of event listeners
+                            HTMLFormElement.prototype.submit.call(registerForm);
+                        })
+                        .catch(function(error) {
+                            console.error('reCAPTCHA Error:', error);
+                            alert('Security check failed. Please refresh and try again.');
+
+                            // Reset UI on error
+                            isSubmitting = false;
+                            submitButton.disabled = false;
+                            submitButton.innerHTML = originalBtnText;
+                        });
+                });
+            });
+        }
+    </script>
+}

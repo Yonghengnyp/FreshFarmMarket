@@ -1,0 +1,185 @@
+@page
+@using Microsoft.AspNetCore.Identity
+@using FreshFarmMarket.Models
+@model FreshFarmMarket.Pages.Account.Enable2FAModel
+@inject UserManager<Member> UserManager
+@{
+    ViewData["Title"] = "Enable Two-Factor Authentication (2FA)";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h3 class="mb-0"><i class="bi bi-shield-check"></i> Two-Factor Authentication (2FA)</h3>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(Model.StatusMessage))
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            @Model.StatusMessage
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    }
+
+                    @if (User.Identity?.IsAuthenticated == true)
+                    {
+                        var user = await UserManager.GetUserAsync(User);
+                        var is2faEnabled = user != null && await UserManager.GetTwoFactorEnabledAsync(user);
+
+                        @if (is2faEnabled)
+                        {
+                            <div class="alert alert-success">
+                                <i class="bi bi-shield-check-fill"></i>
+                                <strong>2FA is Currently Enabled</strong>
+                                <p class="mb-0 mt-2">Your account is protected with two-factor authentication using an authenticator app.</p>
+                            </div>
+
+                            <div class="card bg-light mb-3">
+                                <div class="card-body">
+                                    <h5><i class="bi bi-info-circle"></i> How to Use</h5>
+                                    <p>When you login, you'll be asked for a 6-digit code from your authenticator app.</p>
+                                    <p class="mb-0"><strong>Supported Apps:</strong> Google Authenticator, Microsoft Authenticator, Authy, 1Password, etc.</p>
+                                </div>
+                            </div>
+
+                            <form method="post" asp-page-handler="Disable">
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                    <strong>Warning:</strong> Disabling 2FA will make your account less secure.
+                                </div>
+                                <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to disable 2FA?')">
+                                    <i class="bi bi-shield-x"></i> Disable 2FA
+                                </button>
+                                <a asp-page="/Account/Home" class="btn btn-outline-secondary">
+                                    <i class="bi bi-arrow-left"></i> Back to Home
+                                </a>
+                            </form>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info">
+                                <h5 class="alert-heading"><i class="bi bi-info-circle"></i> What is Two-Factor Authentication?</h5>
+                                <p>2FA adds an extra layer of security to your account. When you login:</p>
+                                <ol>
+                                    <li>Enter your email and password</li>
+                                    <li>Open your authenticator app</li>
+                                    <li>Enter the 6-digit code shown in the app</li>
+                                </ol>
+                                <p class="mb-0"><strong>Why use 2FA?</strong> Even if someone gets your password, they can't access your account without your phone.</p>
+                            </div>
+
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <div class="card h-100">
+                                        <div class="card-body text-center">
+                                            <h5 class="card-title"><i class="bi bi-phone"></i> Step 1: Download an App</h5>
+                                            <p class="card-text">Install an authenticator app on your phone:</p>
+                                            <ul class="list-unstyled">
+                                                <li><strong>Google Authenticator</strong></li>
+                                                <li><strong>Microsoft Authenticator</strong></li>
+                                                <li><strong>Authy</strong></li>
+                                                <li><strong>1Password</strong></li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card h-100">
+                                        <div class="card-body text-center">
+                                            <h5 class="card-title"><i class="bi bi-qr-code-scan"></i> Step 2: Scan QR Code</h5>
+                                            <div class="qr-code-container p-3 bg-white border rounded">
+                                                <img src="@Model.QrCodeImage" alt="QR Code" class="img-fluid" style="max-width: 200px;" />
+                                            </div>
+                                            <p class="text-muted small mt-2">Scan this code with your authenticator app</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card bg-light mb-4">
+                                <div class="card-body">
+                                    <h5 class="card-title"><i class="bi bi-keyboard"></i> Can't Scan? Enter Manually</h5>
+                                    <p>If you can't scan the QR code, enter this key manually in your authenticator app:</p>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control font-monospace" value="@Model.SharedKey" readonly id="sharedKey" />
+                                        <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard()">
+                                            <i class="bi bi-clipboard"></i> Copy
+                                        </button>
+                                    </div>
+                                    <small class="text-muted">Account: @User.Identity?.Name | Issuer: FreshFarmMarket</small>
+                                </div>
+                            </div>
+
+                            <form method="post">
+                                <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <h5 class="card-title"><i class="bi bi-check-circle"></i> Step 3: Verify Setup</h5>
+                                        <p>Enter the 8-digit code shown in your authenticator app to complete setup:</p>
+                                        
+                                        <div class="mb-3">
+                                            <label asp-for="Input.Code" class="form-label">Verification Code</label>
+                                            <input asp-for="Input.Code" 
+                                                   class="form-control form-control-lg text-center" 
+                                                   placeholder="00000000"
+                                                   maxlength="8"
+                                                   pattern="\d{8}"
+                                                   inputmode="numeric"
+                                                   autocomplete="off"
+                                                   autofocus />
+                                            <span asp-validation-for="Input.Code" class="text-danger"></span>
+                                            <small class="text-muted">The code changes every 30 seconds</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="d-grid gap-2">
+                                    <button type="submit" class="btn btn-success btn-lg">
+                                        <i class="bi bi-shield-check"></i> Enable 2FA & Verify
+                                    </button>
+                                    <a asp-page="/Account/Home" class="btn btn-outline-secondary">
+                                        <i class="bi bi-arrow-left"></i> Back to Home
+                                    </a>
+                                </div>
+                            </form>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    
+    <script>
+        function copyToClipboard() {
+            var copyText = document.getElementById("sharedKey");
+            copyText.select();
+            copyText.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(copyText.value);
+            
+            // Show feedback
+            var btn = event.target.closest('button');
+            var originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-check"></i> Copied!';
+            setTimeout(function() {
+                btn.innerHTML = originalHTML;
+            }, 2000);
+        }
+
+        // Auto-format code input
+        document.querySelector('input[name="Input.Code"]')?.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\s/g, '');
+            if (value.length > 3) {
+                e.target.value = value.slice(0, 3) + ' ' + value.slice(3, 6);
+            } else {
+                e.target.value = value;
+            }
+        });
+    </script>
+}

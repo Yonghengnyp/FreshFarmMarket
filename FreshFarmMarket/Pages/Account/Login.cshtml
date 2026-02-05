@@ -1,0 +1,215 @@
+﻿@page
+@model FreshFarmMarket.Pages.Account.LoginModel
+@{
+    ViewData["Title"] = "Login";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h3 class="mb-0">🌱 Fresh Farm Market - Login</h3>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(Model.StatusMessage))
+                    {
+                        <div class="alert alert-info alert-dismissible fade show" role="alert">
+                            @Model.StatusMessage
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    }
+
+                    @if (TempData["MultipleLoginWarning"] != null)
+                    {
+                        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                            <strong>⚠️ Security Alert:</strong> @TempData["MultipleLoginWarning"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    }
+
+                    <div class="alert alert-info">
+                        <i class="bi bi-shield-check"></i>
+                        <strong>Two-Factor Authentication Enabled</strong><br/>
+                        <small>After entering your credentials, you'll need to verify with your authenticator app.</small>
+                    </div>
+
+                    <form method="post" id="loginForm">
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                        <fieldset>
+                            <legend class="visually-hidden">Login</legend>
+
+                            <!-- Email -->
+                            <div class="mb-3">
+                                <label asp-for="Input.Email" class="form-label"></label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                                    <input asp-for="Input.Email" class="form-control" type="email" placeholder="your.email@example.com" autofocus />
+                                </div>
+                                <span asp-validation-for="Input.Email" class="text-danger"></span>
+                            </div>
+
+                            <!-- Password -->
+                            <div class="mb-3">
+                                <label asp-for="Input.Password" class="form-label"></label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                                    <input asp-for="Input.Password" class="form-control" type="password" placeholder="Enter your password" />
+                                    <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                        <i class="bi bi-eye" id="toggleIcon"></i>
+                                    </button>
+                                </div>
+                                <span asp-validation-for="Input.Password" class="text-danger"></span>
+                            </div>
+
+                            <!-- Remember Me -->
+                            <div class="mb-3 form-check">
+                                <input asp-for="Input.RememberMe" class="form-check-input" type="checkbox" />
+                                <label asp-for="Input.RememberMe" class="form-check-label"></label>
+                            </div>
+
+                            <!-- Hidden reCAPTCHA v3 Token -->
+                            <input type="hidden" asp-for="Input.RecaptchaToken" id="recaptchaToken" />
+
+                            <!-- Submit Button -->
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-success btn-lg" id="loginButton">
+                                    <i class="bi bi-box-arrow-in-right"></i> Login
+                                </button>
+                            </div>
+                        </fieldset>
+
+                        <div class="text-center mt-3">
+                            <p class="mb-2">
+                                <a asp-page="/Account/ForgotPassword" class="text-muted">Forgot your password?</a>
+                            </p>
+                            <p>
+                                Don't have an account? <a asp-page="/Account/Register" class="text-success fw-bold">Register here</a>
+                            </p>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer text-center text-muted">
+                    <small>🔒 Secure login with reCAPTCHA v3, rate limiting and audit logging</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    
+    <!-- Google reCAPTCHA v3 - Invisible, no checkbox -->
+    <script src="https://www.google.com/recaptcha/api.js?render=6Ld2VGEsAAAAAKeFHxKw1B0Nt3EDwkkB-0g9iKY8"></script>
+    
+    <script>
+        let isSubmitting = false;
+
+        // Toggle password visibility
+        document.getElementById('togglePassword')?.addEventListener('click', function() {
+            const passwordInput = document.querySelector('input[name="Input.Password"]');
+            const toggleIcon = document.getElementById('toggleIcon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.classList.remove('bi-eye');
+                toggleIcon.classList.add('bi-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.classList.remove('bi-eye-slash');
+                toggleIcon.classList.add('bi-eye');
+            }
+        });
+
+        // reCAPTCHA v3 on form submit
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm) {
+            loginForm.addEventListener('submit', function(e) {
+                // Prevent default submission
+                e.preventDefault();
+                
+                // Prevent double submission
+                if (isSubmitting) {
+                    console.log('Form already submitting, ignoring duplicate submission');
+                    return false;
+                }
+                
+                isSubmitting = true;
+                const submitButton = document.getElementById('loginButton');
+                const originalButtonText = submitButton.innerHTML;
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Logging in...';
+                
+                // Execute reCAPTCHA v3 (invisible - no user interaction)
+                grecaptcha.ready(function() {
+                    grecaptcha.execute('6Ld2VGEsAAAAAKeFHxKw1B0Nt3EDwkkB-0g9iKY8', {action: 'login'})
+                        .then(function(token) {
+                            console.log('reCAPTCHA v3 token received:', token.substring(0, 20) + '...');
+                            
+                            // Set token in hidden field
+                            document.getElementById('recaptchaToken').value = token;
+                            
+                            // Submit form using Fetch API to handle redirects properly
+                            const formData = new FormData(loginForm);
+                            formData.set('Input.RecaptchaToken', token);
+                            
+                            fetch(loginForm.action || window.location.href, {
+                                method: 'POST',
+                                body: formData
+                            }).then(response => {
+                                if (response.redirected) {
+                                    // Success - follow redirect
+                                    window.location.href = response.url;
+                                } else if (response.ok) {
+                                    // Check if there's a response body
+                                    return response.text().then(html => {
+                                        // Replace current page with response
+                                        document.open();
+                                        document.write(html);
+                                        document.close();
+                                    });
+                                } else {
+                                    throw new Error('Login failed');
+                                }
+                            }).catch(error => {
+                                console.error('Login error:', error);
+                                isSubmitting = false;
+                                submitButton.disabled = false;
+                                submitButton.innerHTML = originalButtonText;
+                                alert('Login failed. Please try again.');
+                            });
+                        })
+                        .catch(function(error) {
+                            console.error('reCAPTCHA v3 error:', error);
+                            alert('reCAPTCHA verification failed. Please refresh the page and try again.\n\nError: ' + error);
+                            
+                            // Re-enable button
+                            isSubmitting = false;
+                            submitButton.disabled = false;
+                            submitButton.innerHTML = originalButtonText;
+                        });
+                });
+                
+                return false;
+            });
+        }
+
+        // Session timeout warning
+        let sessionTimeout = @(ViewContext.HttpContext.RequestServices.GetRequiredService<IConfiguration>().GetValue<int>("AccountPolicy:SessionTimeoutMinutes", 30));
+        let warningTime = (sessionTimeout - 1) * 60 * 1000; // 1 minute before timeout
+
+        if (sessionTimeout > 1) {
+            setTimeout(function() {
+                if (confirm('Your session will expire in 1 minute. Would you like to stay logged in?')) {
+                    // Refresh the page to extend session
+                    window.location.reload();
+                }
+            }, warningTime);
+        }
+
+        // Log when reCAPTCHA script is loaded
+        console.log('reCAPTCHA v3 script loaded for invisible verification');
+    </script>
+}

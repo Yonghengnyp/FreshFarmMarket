@@ -1,0 +1,125 @@
+@page
+@model FreshFarmMarket.Pages.Account.ShowRecoveryCodesModel
+@{
+    ViewData["Title"] = "Recovery Codes";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-warning text-dark">
+                    <h3 class="mb-0"><i class="bi bi-shield-exclamation"></i> Recovery Codes</h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <strong>IMPORTANT: Save These Recovery Codes!</strong>
+                        <p class="mb-0 mt-2">
+                            Store these recovery codes in a secure location. If you lose access to your authenticator app,
+                            you can use these codes to regain access to your account. Each code can only be used once.
+                        </p>
+                    </div>
+
+                    <div class="card bg-light mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="bi bi-key"></i> Your Recovery Codes</h5>
+                            <div class="row">
+                                @if (Model.RecoveryCodes != null)
+                                {
+                                    foreach (var code in Model.RecoveryCodes)
+                                    {
+                                        <div class="col-md-6 mb-2">
+                                            <code class="d-block p-2 bg-white border rounded text-center">@code</code>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <h6><i class="bi bi-info-circle"></i> How to Use Recovery Codes</h6>
+                        <ol class="mb-0">
+                            <li><strong>Save them now:</strong> Write them down or store in a password manager</li>
+                            <li><strong>Keep them secure:</strong> Treat them like passwords</li>
+                            <li><strong>Use when needed:</strong> Enter a recovery code instead of the authenticator code if you lose access to your app</li>
+                            <li><strong>One-time use:</strong> Each code can only be used once</li>
+                            <li><strong>Generate new codes:</strong> You can generate new codes anytime from your account settings</li>
+                        </ol>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-primary" onclick="printCodes()">
+                            <i class="bi bi-printer"></i> Print Recovery Codes
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" onclick="downloadCodes()">
+                            <i class="bi bi-download"></i> Download as Text File
+                        </button>
+                        <a asp-page="/Account/Home" class="btn btn-success">
+                            <i class="bi bi-check-circle"></i> I've Saved My Codes - Continue to Home
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function printCodes() {
+            window.print();
+        }
+
+        function downloadCodes() {
+            @if (Model.RecoveryCodes != null)
+            {
+                <text>
+                const codes = [@Html.Raw(string.Join(",", Model.RecoveryCodes.Select(c => $"\"{c}\"")))];
+                const content = `Fresh Farm Market - Recovery Codes
+Generated: ${new Date().toLocaleString()}
+
+IMPORTANT: Keep these codes safe and secure!
+Each code can only be used once.
+
+Recovery Codes:
+${codes.map((code, i) => `${i + 1}. ${code}`).join('\n')}
+
+Instructions:
+- Save these codes in a secure location
+- Use them to access your account if you lose your authenticator app
+- Each code is single-use only
+- Generate new codes if you use them all
+`;
+
+                const blob = new Blob([content], { type: 'text/plain' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'FreshFarmMarket-RecoveryCodes.txt';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                </text>
+            }
+        }
+    </script>
+
+    <style>
+        @@media print {
+            .btn, .alert-info, .card-header {
+                display: none !important;
+            }
+            .card {
+                box-shadow: none !important;
+                border: 2px solid #000 !important;
+            }
+            .alert-danger {
+                border: 2px solid #dc3545 !important;
+                page-break-after: avoid;
+            }
+        }
+    </style>
+}

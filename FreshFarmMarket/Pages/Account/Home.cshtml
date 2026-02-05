@@ -1,0 +1,328 @@
+@page
+@model FreshFarmMarket.Pages.Account.HomeModel
+@{
+    ViewData["Title"] = "Home";
+}
+
+<div class="container mt-4">
+    <!-- Session Timeout Warning Alert (Hidden by default) -->
+    <div id="sessionWarningAlert" class="alert alert-warning alert-dismissible fade" role="alert" style="display: none;">
+        <strong>? Session Timeout Warning!</strong>
+        <span id="warningMessage"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="alert alert-success d-flex justify-content-between align-items-center" role="alert">
+                <div>
+                    <h4 class="alert-heading">?? Welcome to Fresh Farm Market, @Model.CurrentMember?.FullName!</h4>
+                    <p class="mb-0">You are successfully logged in. <small class="text-muted">(Session timeout: @Model.SessionTimeoutMinutes minutes of inactivity)</small></p>
+                </div>
+                <form method="post" asp-page-handler="Logout" id="logoutForm">
+                    <button type="submit" class="btn btn-outline-danger">
+                        <i class="bi bi-box-arrow-right"></i> Logout
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    @if (TempData["MultipleLoginWarning"] != null)
+    {
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                    <strong>?? Security Alert:</strong> @TempData["MultipleLoginWarning"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="row">
+        <!-- Profile Information -->
+        <div class="col-md-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-person-circle"></i> Profile Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 text-center">
+                            @if (!string.IsNullOrEmpty(Model.CurrentMember?.PhotoPath))
+                            {
+                                <img src="~/@Model.CurrentMember.PhotoPath" alt="Profile Photo" class="img-fluid rounded-circle mb-3" style="max-width: 200px;">
+                            }
+                            else
+                            {
+                                <div class="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 200px; height: 200px; font-size: 80px;">
+                                    @Model.CurrentMember?.FullName?.Substring(0, 1).ToUpper()
+                                </div>
+                            }
+                        </div>
+                        <div class="col-md-8">
+                            <table class="table table-borderless">
+                                <tbody>
+                                    <tr>
+                                        <th width="40%">Full Name:</th>
+                                        <td>@Model.CurrentMember?.FullName</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Email:</th>
+                                        <td>@Model.CurrentMember?.Email</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Gender:</th>
+                                        <td>@Model.CurrentMember?.Gender</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Mobile Number:</th>
+                                        <td>@Model.CurrentMember?.MobileNo</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Delivery Address:</th>
+                                        <td>@Model.CurrentMember?.DeliveryAddress</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Member Since:</th>
+                                        <td>@Model.CurrentMember?.CreatedDate.ToString("MMMM dd, yyyy")</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Last Login:</th>
+                                        <td>@Model.CurrentMember?.LastLoginDate?.ToString("MMMM dd, yyyy HH:mm")</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(Model.CurrentMember?.AboutMe))
+                    {
+                        <hr />
+                        <div class="mt-3">
+                            <h6 class="text-muted">About Me:</h6>
+                            <p class="card-text">@Model.CurrentMember.AboutMe</p>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Encrypted Data Section -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-warning">
+                    <h5 class="mb-0"><i class="bi bi-shield-lock"></i> Encrypted Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info" role="alert">
+                        <i class="bi bi-info-circle"></i> <strong>Security Notice:</strong> Your credit card information is encrypted in our database using AES-256 encryption.
+                    </div>
+
+                    <table class="table">
+                        <tbody>
+                            <tr>
+                                <th width="40%">Credit Card (Masked):</th>
+                                <td>
+                                    <code>@Model.MaskedCreditCard</code>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Encrypted Data:</th>
+                                <td>
+                                    <small class="text-muted font-monospace">@Model.CurrentMember?.CreditCardNo</small>
+                                </td>
+                            </tr>
+                            @if (Model.ShowDecryptedData)
+                            {
+                                <tr class="table-danger">
+                                    <th>Decrypted Credit Card:</th>
+                                    <td>
+                                        <strong>@Model.DecryptedCreditCard</strong>
+                                        <span class="badge bg-danger ms-2">SENSITIVE DATA</span>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+
+                    @if (!Model.ShowDecryptedData)
+                    {
+                        <form method="post" asp-page-handler="ShowDecrypted">
+                            <button type="submit" class="btn btn-warning">
+                                <i class="bi bi-unlock"></i> Show Decrypted Credit Card
+                            </button>
+                            <small class="text-muted d-block mt-2">
+                                ?? This action will be logged in the audit trail for security purposes.
+                            </small>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Log -->
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recent Activity</h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.RecentActivities.Any())
+                    {
+                        <div class="list-group list-group-flush">
+                            @foreach (var activity in Model.RecentActivities)
+                            {
+                                <div class="list-group-item px-0">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">
+                                            @if (activity.IsSuccess)
+                                            {
+                                                <i class="bi bi-check-circle text-success"></i>
+                                            }
+                                            else
+                                            {
+                                                <i class="bi bi-x-circle text-danger"></i>
+                                            }
+                                            @activity.Action
+                                        </h6>
+                                        <small class="text-muted">@activity.Timestamp.ToString("HH:mm")</small>
+                                    </div>
+                                    <small class="text-muted">
+                                        @activity.Timestamp.ToString("MMM dd, yyyy")
+                                    </small>
+                                    @if (!string.IsNullOrEmpty(activity.Details))
+                                    {
+                                        <p class="mb-1"><small>@activity.Details</small></p>
+                                    }
+                                    @if (!string.IsNullOrEmpty(activity.IPAddress))
+                                    {
+                                        <small class="text-muted">IP: @activity.IPAddress</small>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted text-center">No recent activity</p>
+                    }
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card shadow-sm mt-3">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0"><i class="bi bi-gear"></i> Account Settings</h6>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a asp-page="/Account/ChangePassword" class="list-group-item list-group-item-action">
+                        <i class="bi bi-key"></i> Change Password
+                    </a>
+                    <a asp-page="/Account/EditProfile" class="list-group-item list-group-item-action">
+                        <i class="bi bi-pencil"></i> Edit Profile
+                    </a>
+                    <a asp-page="/Account/Enable2FA" class="list-group-item list-group-item-action">
+                        <i class="bi bi-shield-check"></i> Enable 2FA
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // ============================================
+        // AUTO-LOGOUT SESSION TIMEOUT FUNCTIONALITY
+        // ============================================
+        
+        // Session timeout in milliseconds (from server configuration)
+        const sessionTimeoutMs = @Model.SessionTimeoutMinutes * 60 * 1000; // Convert minutes to ms
+        const warningTimeMs = sessionTimeoutMs - (30 * 1000); // Show warning 30 seconds before timeout
+        
+        let sessionTimer;
+        let warningTimer;
+        let lastActivityTime = Date.now();
+
+        console.log(`Session timeout set to ${@Model.SessionTimeoutMinutes} minutes (${sessionTimeoutMs}ms)`);
+        
+        // Function to reset the session timeout
+        function resetSessionTimeout() {
+            lastActivityTime = Date.now();
+            
+            // Clear existing timers
+            clearTimeout(sessionTimer);
+            clearTimeout(warningTimer);
+            
+            // Hide warning alert if showing
+            document.getElementById('sessionWarningAlert').style.display = 'none';
+            
+            // Set warning timer (30 seconds before auto-logout)
+            warningTimer = setTimeout(showTimeoutWarning, warningTimeMs);
+            
+            // Set auto-logout timer
+            sessionTimer = setTimeout(autoLogout, sessionTimeoutMs);
+            
+            console.log('Session timer reset. Will timeout at:', new Date(lastActivityTime + sessionTimeoutMs));
+        }
+
+        // Function to show timeout warning
+        function showTimeoutWarning() {
+            const alert = document.getElementById('sessionWarningAlert');
+            const message = document.getElementById('warningMessage');
+            message.textContent = 'Your session will expire in 30 seconds due to inactivity. Move your mouse or click to stay logged in.';
+            alert.style.display = 'block';
+            alert.classList.add('show');
+            console.log('Showing timeout warning');
+        }
+
+        // Function to auto-logout
+        function autoLogout() {
+            console.log('Session timeout reached. Auto-logging out...');
+            alert('Your session has expired after @Model.SessionTimeoutMinutes minutes of inactivity. You will be logged out.');
+            
+            // Submit logout form programmatically
+            document.getElementById('logoutForm').submit();
+        }
+
+        // Track user activity
+        const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+        
+        activityEvents.forEach(function(eventName) {
+            document.addEventListener(eventName, resetSessionTimeout, true);
+        });
+
+        // Initialize session timeout on page load
+        resetSessionTimeout();
+        
+        // Periodic check every 10 seconds to sync with server-side session
+        setInterval(function() {
+            const timeSinceLastActivity = Date.now() - lastActivityTime;
+            
+            // If approaching timeout, show warning
+            if (timeSinceLastActivity > warningTimeMs && timeSinceLastActivity < sessionTimeoutMs) {
+                const alert = document.getElementById('sessionWarningAlert');
+                if (alert.style.display === 'none') {
+                    showTimeoutWarning();
+                }
+            }
+            
+            // If timeout exceeded, logout
+            if (timeSinceLastActivity >= sessionTimeoutMs) {
+                autoLogout();
+            }
+        }, 10000); // Check every 10 seconds
+
+        // Auto-hide decrypted data after 30 seconds for security
+        @if (Model.ShowDecryptedData)
+        {
+            <text>
+            setTimeout(function() {
+                if (confirm('For security reasons, the decrypted credit card will be hidden. Click OK to hide it now.')) {
+                    window.location.reload();
+                }
+            }, 30000);
+            </text>
+        }
+    </script>
+}
