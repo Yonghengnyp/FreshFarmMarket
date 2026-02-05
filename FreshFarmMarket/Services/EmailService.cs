@@ -77,7 +77,7 @@ namespace FreshFarmMarket.Services
 
                 using var mailMessage = new MailMessage
                 {
-                    From = new MailAddress(fromEmail, fromName),
+                    From = new MailAddress(fromEmail ?? "noreply@freshfarmmarket.com", fromName),
                     Subject = subject,
                     Body = body,
                     IsBodyHtml = true,

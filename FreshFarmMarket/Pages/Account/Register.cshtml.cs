@@ -246,21 +246,12 @@ namespace FreshFarmMarket.Pages.Account
 
                 _logger.LogInformation($"? User created successfully! MemberId: {member.Id}");
 
-                // Step 9: Save password history
-                _logger.LogInformation("Step 9: Saving password history...");
+                // Step 9: Save password to history using PasswordValidationService
+                _logger.LogInformation("Step 9: Saving initial password to history...");
                 try
                 {
-                    var passwordHistory = new PasswordHistory
-                    {
-                        MemberId = member.Id,
-                        PasswordHash = member.PasswordHash!,
-                        ChangedDate = DateTime.UtcNow
-                    };
-                    
-                    _context.PasswordHistories.Add(passwordHistory);
-                    await _context.SaveChangesAsync();
-                    
-                    _logger.LogInformation("? Password history saved");
+                    await _passwordValidationService.SavePasswordToHistoryAsync(member.Id, member.PasswordHash!);
+                    _logger.LogInformation("? Initial password saved to history");
                 }
                 catch (Exception ex)
                 {

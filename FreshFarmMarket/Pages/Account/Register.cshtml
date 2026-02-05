@@ -126,7 +126,7 @@
         // Global state to prevent double submission
         let isSubmitting = false;
 
-        // --- PASSWORD STRENGTH LOGIC ---
+        
         document.getElementById('password')?.addEventListener('input', function() {
             const password = this.value;
             const result = calculatePasswordStrength(password);
@@ -148,7 +148,7 @@
             if (/[A-Z]/.test(password)) score += 15;
             if (/[0-9]/.test(password)) score += 15;
             if (/[^A-Za-z0-9]/.test(password)) score += 20;
-            // Bonus points for variety
+       
             if (/[a-z].*[a-z]/.test(password)) score += 5;
             if (/[A-Z].*[A-Z]/.test(password)) score += 5;
             if (/[0-9].*[0-9]/.test(password)) score += 5;
@@ -183,13 +183,11 @@
             registerForm.addEventListener('submit', function(e) {
                 e.preventDefault(); // Stop standard submit immediately
 
-                // 1. CHECK VALIDATION using ASP.NET Core's jQuery Validate
-                // This prevents sending reCAPTCHA requests if the form is empty/invalid
+             
                 if (!$(registerForm).valid()) {
                     return false;
                 }
 
-                // 2. Prevent Double Clicks
                 if (isSubmitting) {
                     return false;
                 }
@@ -208,9 +206,8 @@
                             // Set the token
                             document.getElementById('recaptchaToken').value = token;
 
-                            // 5. Submit the form PROGRAMMATICALLY
-                            // We use HTMLFormElement.prototype.submit to bypass the jQuery handler
-                            // and avoid an infinite loop of event listeners
+                     
+                            
                             HTMLFormElement.prototype.submit.call(registerForm);
                         })
                         .catch(function(error) {

@@ -1,31 +1,29 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using FreshFarmMarket.Models;
 using FreshFarmMarket.Services;
-using WebApp_Core_Identity.Model;
-using BC = BCrypt.Net.BCrypt;
 
 namespace FreshFarmMarket.Pages.Account
 {
     public class ResetPasswordModel : PageModel
     {
-        private readonly AuthDbContext _context;
-        private readonly PasswordValidationService _passwordValidationService;
+        private readonly UserManager<Member> _userManager;
+        private readonly PasswordValidationService _passwordValidation;
         private readonly AuditLogService _auditLogService;
-        private readonly IConfiguration _configuration;
+        private readonly ILogger<ResetPasswordModel> _logger;
 
         public ResetPasswordModel(
-            AuthDbContext context,
-            PasswordValidationService passwordValidationService,
+            UserManager<Member> userManager,
+            PasswordValidationService passwordValidation,
             AuditLogService auditLogService,
-            IConfiguration configuration)
+            ILogger<ResetPasswordModel> logger)
         {
-            _context = context;
-            _passwordValidationService = passwordValidationService;
+            _userManager = userManager;
+            _passwordValidation = passwordValidation;
             _auditLogService = auditLogService;
-            _configuration = configuration;
+            _logger = logger;
         }
 
         [BindProperty]
@@ -34,186 +32,122 @@ namespace FreshFarmMarket.Pages.Account
         [TempData]
         public string? StatusMessage { get; set; }
 
-        public string Email { get; set; } = string.Empty;
-        public bool TokenExpired { get; set; }
-
         public class InputModel
         {
             [Required]
+            [EmailAddress]
             public string Email { get; set; } = string.Empty;
 
-            [Required]
-            public string Token { get; set; } = string.Empty;
-
             [Required(ErrorMessage = "New password is required")]
-            [StringLength(100, MinimumLength = 12, ErrorMessage = "Password must be at least 12 characters")]
+            [StringLength(100, ErrorMessage = "Password must be at least {2} characters long", MinimumLength = 12)]
             [DataType(DataType.Password)]
             [Display(Name = "New Password")]
-            public string NewPassword { get; set; } = string.Empty;
+            public string Password { get; set; } = string.Empty;
 
-            [Required(ErrorMessage = "Please confirm your new password")]
+            [Required(ErrorMessage = "Password confirmation is required")]
             [DataType(DataType.Password)]
-            [Compare("NewPassword", ErrorMessage = "New password and confirmation password do not match")]
-            [Display(Name = "Confirm New Password")]
+            [Display(Name = "Confirm Password")]
+            [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
             public string ConfirmPassword { get; set; } = string.Empty;
+
+            [Required]
+            public string Code { get; set; } = string.Empty;
         }
 
-        public IActionResult OnGet(string? token, string? email)
+        public IActionResult OnGet(string? code = null, string? email = null)
         {
-            if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(email))
+            if (code == null || email == null)
             {
-                TempData["StatusMessage"] = "Invalid password reset link.";
-                return RedirectToPage("/Account/Login");
+                return BadRequest("A code and email must be supplied for password reset.");
             }
-
-            // Validate token from TempData
-            var storedToken = TempData.Peek($"ResetToken_{email}") as string;
-            var storedExpiry = TempData.Peek($"ResetTokenExpiry_{email}") as string;
-
-            if (string.IsNullOrEmpty(storedToken) || string.IsNullOrEmpty(storedExpiry))
+            else
             {
-                TokenExpired = true;
-                Email = email;
+                Input = new InputModel
+                {
+                    Code = code,
+                    Email = email
+                };
                 return Page();
             }
-
-            if (!DateTime.TryParse(storedExpiry, out var expiryDate) || DateTime.UtcNow > expiryDate)
-            {
-                TokenExpired = true;
-                Email = email;
-                return Page();
-            }
-
-            if (storedToken != token)
-            {
-                TempData["StatusMessage"] = "Invalid password reset link.";
-                return RedirectToPage("/Account/Login");
-            }
-
-            // Valid token
-            Email = email;
-            Input.Email = email;
-            Input.Token = token;
-            TokenExpired = false;
-
-            return Page();
         }
 
         public async Task<IActionResult> OnPostAsync()
         {
             if (!ModelState.IsValid)
             {
-                Email = Input.Email;
                 return Page();
             }
 
-            // Validate token
-            var storedToken = TempData.Peek($"ResetToken_{Input.Email}") as string;
-            var storedExpiry = TempData.Peek($"ResetTokenExpiry_{Input.Email}") as string;
-
-            if (string.IsNullOrEmpty(storedToken) || string.IsNullOrEmpty(storedExpiry))
+            var user = await _userManager.FindByEmailAsync(Input.Email);
+            if (user == null)
             {
-                ModelState.AddModelError(string.Empty, "Invalid or expired reset token.");
-                Email = Input.Email;
-                TokenExpired = true;
-                return Page();
+                // Don't reveal that the user does not exist
+                _logger.LogWarning($"Password reset attempted for non-existent email: {Input.Email}");
+                await _auditLogService.LogActionAsync(null, "Password Reset Failed", 
+                    $"Non-existent email: {Input.Email}", false, "User not found");
+                
+                StatusMessage = "? If an account with that email exists, a password reset has been completed.";
+                return RedirectToPage("/Account/Login");
             }
 
-            if (!DateTime.TryParse(storedExpiry, out var expiryDate) || DateTime.UtcNow > expiryDate)
+            // 1. VALIDATE PASSWORD COMPLEXITY
+            var validationResult = _passwordValidation.ValidatePassword(Input.Password);
+            if (!validationResult.IsValid)
             {
-                ModelState.AddModelError(string.Empty, "This reset link has expired. Please request a new one.");
-                Email = Input.Email;
-                TokenExpired = true;
-                return Page();
-            }
-
-            if (storedToken != Input.Token)
-            {
-                ModelState.AddModelError(string.Empty, "Invalid reset token.");
-                Email = Input.Email;
-                return Page();
-            }
-
-            // Find member
-            var member = await _context.Members
-                .Include(m => m.PasswordHistories)
-                .FirstOrDefaultAsync(m => m.Email == Input.Email);
-
-            if (member == null)
-            {
-                await _auditLogService.LogActionAsync(
-                    null,
-                    "Password Reset Failed",
-                    $"Member not found for email: {Input.Email}",
-                    false,
-                    "Member not found");
-
-                ModelState.AddModelError(string.Empty, "Unable to reset password.");
-                Email = Input.Email;
-                return Page();
-            }
-
-            // Validate new password strength
-            var passwordValidation = _passwordValidationService.ValidatePassword(Input.NewPassword);
-            if (!passwordValidation.IsValid)
-            {
-                foreach (var error in passwordValidation.Errors)
+                foreach (var error in validationResult.Errors)
                 {
-                    ModelState.AddModelError(nameof(Input.NewPassword), error);
+                    ModelState.AddModelError(string.Empty, error);
                 }
-                Email = Input.Email;
+                
+                await _auditLogService.LogActionAsync(user.Id, "Password Reset Failed", 
+                    "Password complexity requirements not met", false);
                 return Page();
             }
 
-            // Check password history
-            var passwordHistoryCount = _configuration.GetValue<int>("PasswordPolicy:PasswordHistoryCount", 2);
-            var recentPasswords = member.PasswordHistories
-                .OrderByDescending(ph => ph.ChangedDate)
-                .Take(passwordHistoryCount)
-                .ToList();
-
-            foreach (var oldPassword in recentPasswords)
+            // 2. CHECK PASSWORD HISTORY (prevent reuse)
+            var isInHistory = await _passwordValidation.IsPasswordInHistoryAsync(user.Id, Input.Password, user);
+            if (isInHistory)
             {
-                if (BC.Verify(Input.NewPassword, oldPassword.PasswordHash))
-                {
-                    ModelState.AddModelError(nameof(Input.NewPassword),
-                        $"You cannot reuse your last {passwordHistoryCount} passwords.");
-                    await _auditLogService.LogActionAsync(
-                        member.MemberId,
-                        "Password Reset Failed",
-                        "Password reuse attempted",
-                        false);
-                    Email = Input.Email;
-                    return Page();
-                }
+                var policyInfo = _passwordValidation.GetPasswordPolicy();
+                ModelState.AddModelError(string.Empty, 
+                    $"Cannot reuse any of your last {policyInfo.PasswordHistoryCount} passwords. Please choose a different password.");
+                
+                await _auditLogService.LogActionAsync(user.Id, "Password Reset Failed", 
+                    "Password found in history - reuse attempted", false);
+                return Page();
             }
 
-            // Update password
-            var hashedPassword = BC.HashPassword(Input.NewPassword);
-            // Update member password
-            member.PasswordHash = hashedPassword;
-            member.LastPasswordChangeDate = DateTime.UtcNow;
-            
-            // Unlock account if it was locked (using Identity properties)
-            member.LockoutEnd = null;
-            member.LockoutEnabled = false;
-            member.AccessFailedCount = 0;
-            
-            await _context.SaveChangesAsync();
+            // 3. RESET PASSWORD
+            var result = await _userManager.ResetPasswordAsync(user, Input.Code, Input.Password);
+            if (result.Succeeded)
+            {
+                // 4. UPDATE LAST PASSWORD CHANGE DATE
+                user.LastPasswordChangeDate = DateTime.UtcNow;
+                await _userManager.UpdateAsync(user);
 
-            // Clear the reset token from TempData
-            TempData.Remove($"ResetToken_{Input.Email}");
-            TempData.Remove($"ResetTokenExpiry_{Input.Email}");
+                // 5. SAVE NEW PASSWORD TO HISTORY
+                var newPasswordHash = user.PasswordHash!;
+                await _passwordValidation.SavePasswordToHistoryAsync(user.Id, newPasswordHash);
 
-            // Log password reset
-            await _auditLogService.LogActionAsync(
-                member.MemberId,
-                "Password Reset",
-                $"Password reset successfully for {member.Email}",
-                true);
+                // 6. LOG SUCCESS
+                await _auditLogService.LogActionAsync(user.Id, "Password Reset", 
+                    "Password reset successfully via email link", true);
 
-            StatusMessage = "Your password has been reset successfully! You can now login with your new password.";
-            return RedirectToPage("/Account/Login");
+                _logger.LogInformation($"? User {user.Email} reset their password successfully");
+
+                StatusMessage = "? Your password has been reset successfully. You can now login with your new password.";
+                return RedirectToPage("/Account/Login");
+            }
+
+            foreach (var error in result.Errors)
+            {
+                ModelState.AddModelError(string.Empty, error.Description);
+            }
+
+            await _auditLogService.LogActionAsync(user.Id, "Password Reset Failed", 
+                "Reset token invalid or expired", false);
+
+            return Page();
         }
     }
 }

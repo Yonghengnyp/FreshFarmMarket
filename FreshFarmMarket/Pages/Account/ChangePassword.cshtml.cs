@@ -1,36 +1,34 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.AspNetCore.Identity;
 using System.ComponentModel.DataAnnotations;
 using FreshFarmMarket.Models;
 using FreshFarmMarket.Services;
-using WebApp_Core_Identity.Model;
 
 namespace FreshFarmMarket.Pages.Account
 {
+    [Authorize]
     public class ChangePasswordModel : PageModel
     {
         private readonly UserManager<Member> _userManager;
         private readonly SignInManager<Member> _signInManager;
-        private readonly AuthDbContext _context;
-        private readonly PasswordValidationService _passwordValidationService;
+        private readonly PasswordValidationService _passwordValidation;
         private readonly AuditLogService _auditLogService;
-        private readonly IConfiguration _configuration;
+        private readonly ILogger<ChangePasswordModel> _logger;
 
         public ChangePasswordModel(
             UserManager<Member> userManager,
             SignInManager<Member> signInManager,
-            AuthDbContext context,
-            PasswordValidationService passwordValidationService,
+            PasswordValidationService passwordValidation,
             AuditLogService auditLogService,
-            IConfiguration configuration)
+            ILogger<ChangePasswordModel> logger)
         {
             _userManager = userManager;
             _signInManager = signInManager;
-            _context = context;
-            _passwordValidationService = passwordValidationService;
+            _passwordValidation = passwordValidation;
             _auditLogService = auditLogService;
-            _configuration = configuration;
+            _logger = logger;
         }
 
         [BindProperty]
@@ -39,9 +37,11 @@ namespace FreshFarmMarket.Pages.Account
         [TempData]
         public string? StatusMessage { get; set; }
 
-        public string? MemberEmail { get; set; }
-        public int DaysUntilExpiration { get; set; }
+        public int DaysUntilExpiry { get; set; }
+        public bool PasswordExpiringSoon { get; set; }
         public bool PasswordExpired { get; set; }
+        public int MinutesUntilCanChange { get; set; }
+        public bool CanChangeNow { get; set; } = true;
 
         public class InputModel
         {
@@ -51,154 +51,134 @@ namespace FreshFarmMarket.Pages.Account
             public string CurrentPassword { get; set; } = string.Empty;
 
             [Required(ErrorMessage = "New password is required")]
-            [StringLength(100, MinimumLength = 12, ErrorMessage = "Password must be at least 12 characters")]
+            [StringLength(100, ErrorMessage = "Password must be at least {2} characters long", MinimumLength = 12)]
             [DataType(DataType.Password)]
             [Display(Name = "New Password")]
             public string NewPassword { get; set; } = string.Empty;
 
-            [Required(ErrorMessage = "Please confirm your new password")]
+            [Required(ErrorMessage = "Password confirmation is required")]
             [DataType(DataType.Password)]
-            [Compare("NewPassword", ErrorMessage = "New password and confirmation password do not match")]
             [Display(Name = "Confirm New Password")]
+            [Compare("NewPassword", ErrorMessage = "The new password and confirmation password do not match")]
             public string ConfirmPassword { get; set; } = string.Empty;
         }
 
         public async Task<IActionResult> OnGetAsync()
         {
-            // Check if user is logged in
-            var memberId = HttpContext.Session.GetInt32("MemberId");
-            if (!memberId.HasValue)
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
             {
-                TempData["StatusMessage"] = "Please login to access this page.";
-                return RedirectToPage("/Account/Login");
+                return NotFound($"Unable to load user with ID '{_userManager.GetUserId(User)}'.");
             }
 
-            // Update last activity
-            HttpContext.Session.SetString("LastActivity", DateTime.UtcNow.ToString("o"));
+            // Check password age (handle nullable DateTime)
+            var lastPasswordChange = user.LastPasswordChangeDate ?? DateTime.UtcNow;
+            DaysUntilExpiry = _passwordValidation.GetDaysUntilPasswordExpires(lastPasswordChange);
+            PasswordExpiringSoon = _passwordValidation.IsPasswordExpiringSoon(lastPasswordChange);
+            PasswordExpired = _passwordValidation.MustChangePassword(lastPasswordChange);
 
-            // Load member data using Id instead of MemberId
-            var member = await _userManager.FindByIdAsync(memberId.Value.ToString());
-
-            if (member == null)
-            {
-                HttpContext.Session.Clear();
-                return RedirectToPage("/Account/Login");
-            }
-
-            MemberEmail = member.Email;
-
-            // Check password age
-            var maxPasswordAgeDays = _configuration.GetValue<int>("PasswordPolicy:MaxPasswordAgeDays", 90);
-            if (member.LastPasswordChangeDate.HasValue)
-            {
-                var daysSinceChange = (DateTime.UtcNow - member.LastPasswordChangeDate.Value).Days;
-                DaysUntilExpiration = maxPasswordAgeDays - daysSinceChange;
-                PasswordExpired = DaysUntilExpiration <= 0;
-            }
+            // Check minimum age restriction
+            CanChangeNow = _passwordValidation.CanChangePassword(lastPasswordChange);
+            MinutesUntilCanChange = _passwordValidation.GetMinutesUntilCanChange(lastPasswordChange);
 
             return Page();
         }
 
         public async Task<IActionResult> OnPostAsync()
         {
-            var memberId = HttpContext.Session.GetInt32("MemberId");
-            if (!memberId.HasValue)
-            {
-                return RedirectToPage("/Account/Login");
-            }
-
-            // Update last activity
-            HttpContext.Session.SetString("LastActivity", DateTime.UtcNow.ToString("o"));
-
+            // Initialize CanChangeNow to true by default
+            CanChangeNow = true;
+            
             if (!ModelState.IsValid)
             {
                 return Page();
             }
 
-            // Load member using UserManager
-            var member = await _userManager.FindByIdAsync(memberId.Value.ToString());
-
-            if (member == null)
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
             {
-                return RedirectToPage("/Account/Login");
+                return NotFound($"Unable to load user with ID '{_userManager.GetUserId(User)}'.");
             }
 
-            MemberEmail = member.Email;
-
-            // Check minimum password age
-            var minPasswordAgeMinutes = _configuration.GetValue<int>("PasswordPolicy:MinPasswordAgeMinutes", 5);
-            if (member.LastPasswordChangeDate.HasValue)
+            // 1. CHECK MINIMUM PASSWORD AGE
+            var lastPasswordChange = user.LastPasswordChangeDate ?? DateTime.UtcNow;
+            if (!_passwordValidation.CanChangePassword(lastPasswordChange))
             {
-                var minutesSinceChange = (DateTime.UtcNow - member.LastPasswordChangeDate.Value).TotalMinutes;
-                if (minutesSinceChange < minPasswordAgeMinutes)
-                {
-                    var remainingMinutes = (int)(minPasswordAgeMinutes - minutesSinceChange);
-                    ModelState.AddModelError(string.Empty, 
-                        $"You must wait {remainingMinutes} more minute(s) before changing your password again.");
-                    return Page();
-                }
-            }
-
-            // Validate new password strength
-            var passwordValidation = _passwordValidationService.ValidatePassword(Input.NewPassword);
-            if (!passwordValidation.IsValid)
-            {
-                foreach (var error in passwordValidation.Errors)
-                {
-                    ModelState.AddModelError(nameof(Input.NewPassword), error);
-                }
+                var minutesRemaining = _passwordValidation.GetMinutesUntilCanChange(lastPasswordChange);
+                var policyInfo = _passwordValidation.GetPasswordPolicy();
+                
+                ModelState.AddModelError(string.Empty, 
+                    $"Password cannot be changed yet. You must wait {policyInfo.MinPasswordAgeMinutes} minutes after the last password change. " +
+                    $"Time remaining: {minutesRemaining} minute(s).");
+                
+                await _auditLogService.LogActionAsync(user.Id, "Password Change Failed", 
+                    "Minimum password age not met", false, $"Minutes remaining: {minutesRemaining}");
+                
+                CanChangeNow = false;
+                MinutesUntilCanChange = minutesRemaining;
                 return Page();
             }
 
-            // Use Identity's ChangePasswordAsync instead of BCrypt
-            var result = await _userManager.ChangePasswordAsync(member, Input.CurrentPassword, Input.NewPassword);
-
-            if (!result.Succeeded)
+            // 2. VALIDATE PASSWORD COMPLEXITY
+            var validationResult = _passwordValidation.ValidatePassword(Input.NewPassword);
+            if (!validationResult.IsValid)
             {
-                foreach (var error in result.Errors)
+                foreach (var error in validationResult.Errors)
                 {
-                    if (error.Code == "PasswordMismatch")
-                    {
-                        ModelState.AddModelError(nameof(Input.CurrentPassword), "Current password is incorrect.");
-                    }
-                    else
-                    {
-                        ModelState.AddModelError(string.Empty, error.Description);
-                    }
+                    ModelState.AddModelError(string.Empty, error);
                 }
-                await _auditLogService.LogActionAsync(
-                    memberId.Value,
-                    "Password Change Failed",
-                    "Password change failed",
-                    false);
+                
+                await _auditLogService.LogActionAsync(user.Id, "Password Change Failed", 
+                    "Password complexity requirements not met", false);
                 return Page();
             }
 
-            // Update last password change date
-            member.LastPasswordChangeDate = DateTime.UtcNow;
-            await _userManager.UpdateAsync(member);
-
-            // Add to password history
-            var passwordHistory = new PasswordHistory
+            // 3. CHECK PASSWORD HISTORY (prevent reuse)
+            var isInHistory = await _passwordValidation.IsPasswordInHistoryAsync(user.Id, Input.NewPassword, user);
+            if (isInHistory)
             {
-                MemberId = member.Id,
-                PasswordHash = member.PasswordHash!,
-                ChangedDate = DateTime.UtcNow
-            };
-            _context.PasswordHistories.Add(passwordHistory);
-            await _context.SaveChangesAsync();
+                var policyInfo = _passwordValidation.GetPasswordPolicy();
+                ModelState.AddModelError(string.Empty, 
+                    $"Cannot reuse any of your last {policyInfo.PasswordHistoryCount} passwords. Please choose a different password.");
+                
+                await _auditLogService.LogActionAsync(user.Id, "Password Change Failed", 
+                    "Password found in history - reuse attempted", false);
+                return Page();
+            }
 
-            // Update security stamp to invalidate old tokens/cookies
-            await _userManager.UpdateSecurityStampAsync(member);
+            // 4. VERIFY CURRENT PASSWORD AND CHANGE
+            var changePasswordResult = await _userManager.ChangePasswordAsync(user, Input.CurrentPassword, Input.NewPassword);
+            if (!changePasswordResult.Succeeded)
+            {
+                foreach (var error in changePasswordResult.Errors)
+                {
+                    ModelState.AddModelError(string.Empty, error.Description);
+                }
+                
+                await _auditLogService.LogActionAsync(user.Id, "Password Change Failed", 
+                    "Current password incorrect", false);
+                return Page();
+            }
 
-            // Refresh the sign-in to update the authentication cookie
-            await _signInManager.RefreshSignInAsync(member);
+            // 5. UPDATE LAST PASSWORD CHANGE DATE
+            user.LastPasswordChangeDate = DateTime.UtcNow;
+            await _userManager.UpdateAsync(user);
 
-            // Log password change
-            await _auditLogService.LogPasswordChangeAsync(member.Id, member.Email!);
+            // 6. SAVE NEW PASSWORD TO HISTORY
+            var newPasswordHash = user.PasswordHash!;
+            await _passwordValidation.SavePasswordToHistoryAsync(user.Id, newPasswordHash);
 
-            StatusMessage = "Your password has been changed successfully!";
-            return RedirectToPage("/Account/Home");
+            // 7. REFRESH SIGN-IN (important for security)
+            await _signInManager.RefreshSignInAsync(user);
+
+            // 8. LOG SUCCESS
+            await _auditLogService.LogActionAsync(user.Id, "Password Changed", 
+                "Password changed successfully", true);
+
+            _logger.LogInformation($"? User {user.Email} changed their password successfully");
+
+            StatusMessage = "? Your password has been changed successfully!";
+            return RedirectToPage();
         }
     }
 }

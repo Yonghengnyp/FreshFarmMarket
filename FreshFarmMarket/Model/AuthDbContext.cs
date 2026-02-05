@@ -33,15 +33,18 @@ namespace WebApp_Core_Identity.Model
                 // Email is unique
                 entity.HasIndex(e => e.Email).IsUnique();
 
-                // Relationships
+                // Configure PasswordHistories relationship explicitly
                 entity.HasMany(m => m.PasswordHistories)
-                      .WithOne()
+                      .WithOne(ph => ph.Member)  // Specify the navigation property
                       .HasForeignKey(ph => ph.MemberId)
+                      .HasPrincipalKey(m => m.Id)  // Explicitly set the principal key
                       .OnDelete(DeleteBehavior.Cascade);
 
+                // Configure AuditLogs relationship explicitly
                 entity.HasMany(m => m.AuditLogs)
-                      .WithOne()
+                      .WithOne(al => al.Member)  // Specify the navigation property
                       .HasForeignKey(al => al.MemberId)
+                      .HasPrincipalKey(m => m.Id)  // Explicitly set the principal key
                       .OnDelete(DeleteBehavior.SetNull);
             });
 
@@ -50,6 +53,9 @@ namespace WebApp_Core_Identity.Model
             {
                 entity.ToTable("PasswordHistories");
                 entity.HasKey(e => e.PasswordHistoryId);
+                
+                // Ensure the foreign key is properly configured
+                entity.Property(e => e.MemberId).IsRequired();
             });
 
             // Configure AuditLog
@@ -57,6 +63,9 @@ namespace WebApp_Core_Identity.Model
             {
                 entity.ToTable("AuditLogs");
                 entity.HasKey(e => e.AuditLogId);
+                
+                // MemberId is nullable for audit logs
+                entity.Property(e => e.MemberId).IsRequired(false);
             });
 
             // Use standard Identity table names
