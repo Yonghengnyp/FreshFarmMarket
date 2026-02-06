@@ -106,7 +106,8 @@ namespace FreshFarmMarket.Services
                     var codeMatch = System.Text.RegularExpressions.Regex.Match(body, @"\b\d{6}\b");
                     if (codeMatch.Success)
                     {
-                        _logger.LogWarning($"?? YOUR 6-DIGIT CODE IS: {codeMatch.Value}");
+                        // Do not log the actual 2FA code to avoid storing sensitive data in logs
+                        _logger.LogWarning("?? A 6-DIGIT 2FA/verification code was detected in the email body (not logged for security).");
                     }
                 }
                 _logger.LogWarning("========================================");
