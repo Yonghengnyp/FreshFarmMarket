@@ -102,7 +102,7 @@
     <partial name="_ValidationScriptsPartial" />
     
     <!-- Google reCAPTCHA v3 - Invisible, no checkbox -->
-    <script src="https://www.google.com/recaptcha/api.js?render=6Ld2VGEsAAAAAKeFHxKw1B0Nt3EDwkkB-0g9iKY8"></script>
+    <script src="https://www.google.com/recaptcha/api.js?render=6Lf0q2EsAAAAAHy_MDKNzLJUwMos9a8lJgwNhYFl"></script>
     
     <script>
         let isSubmitting = false;
@@ -144,7 +144,7 @@
                 
                 // Execute reCAPTCHA v3 (invisible - no user interaction)
                 grecaptcha.ready(function() {
-                    grecaptcha.execute('6Ld2VGEsAAAAAKeFHxKw1B0Nt3EDwkkB-0g9iKY8', {action: 'login'})
+                    grecaptcha.execute('6Lf0q2EsAAAAAHy_MDKNzLJUwMos9a8lJgwNhYFl', {action: 'login'})
                         .then(function(token) {
                             console.log('reCAPTCHA v3 token received:', token.substring(0, 20) + '...');
                             

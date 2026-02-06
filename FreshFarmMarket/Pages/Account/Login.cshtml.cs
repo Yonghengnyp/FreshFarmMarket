@@ -205,5 +205,12 @@ namespace FreshFarmMarket.Pages.Account
             var random = new Random();
             return random.Next(100000, 999999).ToString();
         }
+
+        private bool IsValidFileType(IFormFile file)
+        {
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".pdf", ".docx" };
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+               return allowedExtensions.Contains(extension);
+           }
     }
 }

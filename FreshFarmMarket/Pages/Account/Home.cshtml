@@ -7,7 +7,7 @@
 <div class="container mt-4">
     <!-- Session Timeout Warning Alert (Hidden by default) -->
     <div id="sessionWarningAlert" class="alert alert-warning alert-dismissible fade" role="alert" style="display: none;">
-        <strong>? Session Timeout Warning!</strong>
+        <strong>Session Timeout Warning!</strong>
         <span id="warningMessage"></span>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
@@ -16,7 +16,7 @@
         <div class="col-12">
             <div class="alert alert-success d-flex justify-content-between align-items-center" role="alert">
                 <div>
-                    <h4 class="alert-heading">?? Welcome to Fresh Farm Market, @Model.CurrentMember?.FullName!</h4>
+                    <h4 class="alert-heading">Welcome to Fresh Farm Market, @Model.CurrentMember?.FullName!</h4>
                     <p class="mb-0">You are successfully logged in. <small class="text-muted">(Session timeout: @Model.SessionTimeoutMinutes minutes of inactivity)</small></p>
                 </div>
                 <form method="post" asp-page-handler="Logout" id="logoutForm">
@@ -33,7 +33,7 @@
         <div class="row mb-3">
             <div class="col-12">
                 <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                    <strong>?? Security Alert:</strong> @TempData["MultipleLoginWarning"]
+                    <strong> Security Alert:</strong> @TempData["MultipleLoginWarning"]
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             </div>
@@ -152,7 +152,7 @@
                                 <i class="bi bi-unlock"></i> Show Decrypted Credit Card
                             </button>
                             <small class="text-muted d-block mt-2">
-                                ?? This action will be logged in the audit trail for security purposes.
+                                 This action will be logged in the audit trail for security purposes.
                             </small>
                         </form>
                     }
