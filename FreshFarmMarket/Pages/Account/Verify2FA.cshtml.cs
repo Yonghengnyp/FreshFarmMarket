@@ -143,7 +143,7 @@ namespace FreshFarmMarket.Pages.Account
             // Verify the code matches
             if (inputCode != sessionCode)
             {
-                _logger.LogWarning($"Invalid 2FA code for {sessionEmail}");
+                _logger.LogWarning("Invalid 2FA code attempt");
                 
                 if (int.TryParse(sessionUserIdStr, out var userId))
                 {
