@@ -39,7 +39,7 @@ namespace FreshFarmMarket.Services
                     _logger.LogInformation("========================================");
                     _logger.LogInformation($"?? EMAIL TO: {toEmail}");
                     _logger.LogInformation($"?? SUBJECT: {subject}");
-                    _logger.LogInformation($"?? BODY: {body}");
+                    _logger.LogInformation("?? EMAIL BODY GENERATED BUT NOT LOGGED FOR SECURITY.");
                     _logger.LogInformation("========================================");
                     
                     // Extract 6-digit code if this is a 2FA email
