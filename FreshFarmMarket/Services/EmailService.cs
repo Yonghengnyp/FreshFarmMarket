@@ -49,7 +49,8 @@ namespace FreshFarmMarket.Services
                         if (codeMatch.Success)
                         {
                             _logger.LogWarning("========================================");
-                            _logger.LogWarning($"?? YOUR 6-DIGIT CODE IS: {codeMatch.Value}");
+                            // Do not log the actual 2FA/verification code to avoid storing sensitive data in logs
+                            _logger.LogWarning("?? A 6-DIGIT VERIFICATION CODE WAS GENERATED (value not logged for security).");
                             _logger.LogWarning("========================================");
                         }
                     }
